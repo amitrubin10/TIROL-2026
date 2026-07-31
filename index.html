@@ -36,6 +36,9 @@
   p{margin:.4em 0}
   .soft{color:var(--soft)}
   .big-emoji{font-size:1.15em}
+  .dlbtn{display:inline-flex;align-items:center;background:#3f5a49;color:#fff;text-decoration:none;
+    font-weight:700;font-size:17px;padding:14px 26px;border-radius:14px;box-shadow:var(--shadow);transition:.2s}
+  .dlbtn:hover{background:#33463a;transform:translateY(-2px)}
 
   header.hero{padding:56px 0 30px;text-align:center;
     background:radial-gradient(700px 340px at 50% -30%, #f0a35e22, transparent)}
@@ -135,6 +138,28 @@
     <b>מה זה "תמונות שחזרו פעמיים"?</b> הרבה תמונות היו שמורות בכמה מקומות — אותה תמונה בדיוק. השארנו עותק אחד מכל אחת,
     כדי שנעבור רק על תמונות אמיתיות ולא נתבלבל. שום דבר לא נמחק לצמיתות — הכל שמור בצד.
   </div>
+</div></section>
+
+<section id="album"><div class="wrap">
+  <h2><span class="big-emoji">🎂</span> דוגמה לאלבום</h2>
+  <p class="lead">הצצה ראשונה לאיך ייראה האלבום המודפס (30×30 ס"מ) — סגנון פסטל רך עם עיטורי זהב וכריכות מעוצבות. זו <b>דוגמה של כמה עמודים בלבד</b>; האלבום המלא יכלול את כל התמונות, מסודרות לפי ימים, עם אמא ואבא מובלטים.</p>
+  <a class="dlbtn" href="_report_assets/album_sample/tirol-album-sample.pdf" target="_blank" rel="noopener">⬇️&nbsp; הורדת הדוגמה המלאה כ-PDF</a>
+  <p class="soft" style="margin:8px 0 0;font-size:14px">לחיצה על עמוד מציגה אותו בגדול.</p>
+  <div class="grid" id="album-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-top:16px">
+    <div class="cell" data-full="_report_assets/album_sample/p01.jpg"><img loading="lazy" src="_report_assets/album_sample/p01.jpg" alt="כריכה קדמית"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p02.jpg"><img loading="lazy" src="_report_assets/album_sample/p02.jpg" alt="עמוד פותח יום"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p03.jpg"><img loading="lazy" src="_report_assets/album_sample/p03.jpg" alt="עמוד אלבום"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p04.jpg"><img loading="lazy" src="_report_assets/album_sample/p04.jpg" alt="עמוד אלבום"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p05.jpg"><img loading="lazy" src="_report_assets/album_sample/p05.jpg" alt="עמוד אלבום"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p06.jpg"><img loading="lazy" src="_report_assets/album_sample/p06.jpg" alt="עמוד אלבום"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p07.jpg"><img loading="lazy" src="_report_assets/album_sample/p07.jpg" alt="עמוד אלבום"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p08.jpg"><img loading="lazy" src="_report_assets/album_sample/p08.jpg" alt="עמוד אלבום"></div>
+    <div class="cell" data-full="_report_assets/album_sample/p09.jpg"><img loading="lazy" src="_report_assets/album_sample/p09.jpg" alt="כריכה אחורית"></div>
+  </div>
+  <script>
+  (function(){ var lb=document.getElementById('lb'), lbi=document.getElementById('lbimg');
+    document.querySelectorAll('#album-grid .cell').forEach(function(c){ c.addEventListener('click',function(){ lbi.src=c.getAttribute('data-full'); lb.classList.add('open'); }); }); })();
+  </script>
 </div></section>
 
 <section><div class="wrap">
