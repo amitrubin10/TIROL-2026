@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>אלבום טירול 2026 — ספר</title>
+<style>
+  :root{ --bg:#20261f; --panel:#2b3329; --ink:#f3ebe0; --soft:#b8a894; --gold:#bf9e62; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:
+    radial-gradient(1200px 700px at 50% -10%, #3a4633, transparent), var(--bg);
+    color:var(--ink);font-family:"Segoe UI","Assistant",system-ui,sans-serif;overflow:hidden}
+  .top{display:flex;align-items:center;justify-content:center;gap:14px;padding:14px 18px}
+  .top h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.02em}
+  .top .g{color:var(--gold)}
+  .stage{height:calc(100% - 130px);display:flex;align-items:center;justify-content:center;padding:0 10px}
+  #book{width:96vw;max-width:1500px;height:78vh}
+  #book img{width:100%;height:100%}
+  .controls{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:18px;padding:16px;background:linear-gradient(0deg,#0008,transparent)}
+  .btn{background:var(--panel);color:var(--ink);border:1px solid #3f4a38;border-radius:12px;
+    width:52px;height:52px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .btn:hover{background:#374231;border-color:var(--gold)}
+  .counter{min-width:120px;text-align:center;color:var(--soft);font-size:15px}
+  .fs{width:auto;padding:0 16px;font-size:15px;gap:8px}
+  .hint{position:fixed;top:64px;left:0;right:0;text-align:center;color:var(--soft);font-size:13px;pointer-events:none;opacity:.9}
+  .loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--soft);font-size:17px;background:var(--bg);z-index:5}
+  .spin{width:44px;height:44px;border:4px solid #3f4a38;border-top-color:var(--gold);border-radius:50%;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="top"><h1>אלבום טירול <span class="g">2026</span> · חגיגת 80+2 לאבא 🎂</h1></div>
+<div class="hint">דפדפו בעזרת החיצים, גרירת פינת הדף, או הכפתורים למטה</div>
+<div class="stage"><div id="book"></div></div>
+<div class="controls">
+  <button class="btn" id="prev" title="הקודם">‹</button>
+  <div class="counter" id="counter">טוען…</div>
+  <button class="btn" id="next" title="הבא">›</button>
+  <button class="btn fs" id="fs" title="מסך מלא">⛶ מסך מלא</button>
+</div>
+<div class="loading" id="loading"><div class="spin"></div><div>טוען את האלבום…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+<script>
+  var TOTAL = 164;
+  var urls = [];
+  for (var i=1;i<=TOTAL;i++){ urls.push('_report_assets/album_pages/p'+String(i).padStart(3,'0')+'.jpg'); }
+
+  var el = document.getElementById('book');
+  var pageFlip = new St.PageFlip(el, {
+    width: 750, height: 750, size: 'stretch',
+    minWidth: 300, maxWidth: 1500, minHeight: 300, maxHeight: 1500,
+    maxShadowOpacity: 0.5, showCover: true, drawShadow: true,
+    useMouseEvents: true, mobileScrollSupport: true, flippingTime: 700
+  });
+  pageFlip.loadFromImages(urls);
+
+  function updateCounter(){
+    var p = pageFlip.getCurrentPageIndex()+1;
+    document.getElementById('counter').textContent = 'עמוד ' + p + ' מתוך ' + TOTAL;
+  }
+  pageFlip.on('init', function(){ document.getElementById('loading').style.display='none'; updateCounter(); });
+  pageFlip.on('flip', updateCounter);
+
+  document.getElementById('next').onclick = function(){ pageFlip.flipNext(); };
+  document.getElementById('prev').onclick = function(){ pageFlip.flipPrev(); };
+  document.addEventListener('keydown', function(e){
+    if(e.key==='ArrowLeft') pageFlip.flipNext();   // RTL: left arrow = forward
+    if(e.key==='ArrowRight') pageFlip.flipPrev();
+  });
+  document.getElementById('fs').onclick = function(){
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen(); }
+    else { document.exitFullscreen(); }
+  };
+  // safety: hide loader after 6s even if init event missed
+  setTimeout(function(){ document.getElementById('loading').style.display='none'; }, 6000);
+</script>
+</body>
+</html>
