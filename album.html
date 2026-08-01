@@ -15,8 +15,11 @@
   .top h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.02em}
   .top .g{color:var(--gold)}
   .stage{height:calc(100% - 130px);display:flex;align-items:center;justify-content:center;padding:0 10px}
-  #book{width:96vw;max-width:1500px;height:78vh}
-  #book img{width:100%;height:100%}
+  /* RTL: mirror the whole book so it opens right-to-left */
+  #book{width:96vw;max-width:1500px;height:78vh;transform:scaleX(-1)}
+  /* mirror the page images back so their content stays correct */
+  #book .page{background:#20261f;overflow:hidden}
+  #book .page img{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
   .controls{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:18px;padding:16px;background:linear-gradient(0deg,#0008,transparent)}
   .btn{background:var(--panel);color:var(--ink);border:1px solid #3f4a38;border-radius:12px;
     width:52px;height:52px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
@@ -31,12 +34,12 @@
 </head>
 <body>
 <div class="top"><h1>אלבום טירול <span class="g">2026</span> · חגיגת 80+2 לאבא 🎂</h1></div>
-<div class="hint">דפדפו בעזרת החיצים, גרירת פינת הדף, או הכפתורים למטה</div>
+<div class="hint">דפדפו בעזרת החיצים, גרירת פינת הדף, או הכפתורים למטה · נפתח מימין לשמאל</div>
 <div class="stage"><div id="book"></div></div>
 <div class="controls">
-  <button class="btn" id="prev" title="הקודם">‹</button>
+  <button class="btn" id="prev" title="הקודם">›</button>
   <div class="counter" id="counter">טוען…</div>
-  <button class="btn" id="next" title="הבא">›</button>
+  <button class="btn" id="next" title="הבא">‹</button>
   <button class="btn fs" id="fs" title="מסך מלא">⛶ מסך מלא</button>
 </div>
 <div class="loading" id="loading"><div class="spin"></div><div>טוען את האלבום…</div></div>
@@ -44,37 +47,37 @@
 <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
 <script>
   var TOTAL = 164;
-  var urls = [];
-  for (var i=1;i<=TOTAL;i++){ urls.push('_report_assets/album_pages/p'+String(i).padStart(3,'0')+'.jpg'); }
+  var book = document.getElementById('book');
+  for (var i=1;i<=TOTAL;i++){
+    var d = document.createElement('div'); d.className='page';
+    var img = document.createElement('img');
+    img.src = '_report_assets/album_pages/p'+String(i).padStart(3,'0')+'.jpg';
+    img.setAttribute('loading', i<=4?'eager':'lazy');
+    d.appendChild(img); book.appendChild(d);
+  }
 
-  var el = document.getElementById('book');
-  var pageFlip = new St.PageFlip(el, {
+  var pageFlip = new St.PageFlip(book, {
     width: 750, height: 750, size: 'stretch',
     minWidth: 300, maxWidth: 1500, minHeight: 300, maxHeight: 1500,
     maxShadowOpacity: 0.5, showCover: true, drawShadow: true,
     useMouseEvents: true, mobileScrollSupport: true, flippingTime: 700
   });
-  pageFlip.loadFromImages(urls);
+  pageFlip.loadFromHTML(document.querySelectorAll('#book .page'));
 
-  function updateCounter(){
-    var p = pageFlip.getCurrentPageIndex()+1;
-    document.getElementById('counter').textContent = 'עמוד ' + p + ' מתוך ' + TOTAL;
-  }
+  function updateCounter(){ document.getElementById('counter').textContent = 'עמוד ' + (pageFlip.getCurrentPageIndex()+1) + ' מתוך ' + TOTAL; }
   pageFlip.on('init', function(){ document.getElementById('loading').style.display='none'; updateCounter(); });
   pageFlip.on('flip', updateCounter);
 
   document.getElementById('next').onclick = function(){ pageFlip.flipNext(); };
   document.getElementById('prev').onclick = function(){ pageFlip.flipPrev(); };
   document.addEventListener('keydown', function(e){
-    if(e.key==='ArrowLeft') pageFlip.flipNext();   // RTL: left arrow = forward
+    if(e.key==='ArrowLeft') pageFlip.flipNext();   // RTL: left = forward
     if(e.key==='ArrowRight') pageFlip.flipPrev();
   });
   document.getElementById('fs').onclick = function(){
-    if(!document.fullscreenElement){ document.documentElement.requestFullscreen(); }
-    else { document.exitFullscreen(); }
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen(); } else { document.exitFullscreen(); }
   };
-  // safety: hide loader after 6s even if init event missed
-  setTimeout(function(){ document.getElementById('loading').style.display='none'; }, 6000);
+  setTimeout(function(){ document.getElementById('loading').style.display='none'; }, 8000);
 </script>
 </body>
 </html>
