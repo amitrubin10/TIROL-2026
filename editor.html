@@ -25,6 +25,9 @@
   .tile{position:absolute;border-radius:8px;background-size:cover;background-position:center;
     box-shadow:0 2px 8px #0004;cursor:grab;overflow:hidden;border:2px solid transparent}
   .tile.drag{opacity:.4}.tile.over{border-color:var(--gold)}
+  .tile.pan{border-color:var(--gold);cursor:grab;box-shadow:0 0 0 3px var(--gold),0 2px 8px #0006}
+  .tile.pan:active{cursor:grabbing}
+  .tile.pan::after{content:'⤢ גררו למיקום';position:absolute;bottom:4px;right:4px;background:var(--gold);color:#1a1f19;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px}
   .tile .ops{position:absolute;top:3px;left:3px;display:none;gap:3px}
   .tile:hover .ops{display:flex}
   .op{width:26px;height:26px;border-radius:6px;border:0;background:#000a;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -47,13 +50,14 @@
   <button class="btn alt" id="help">איך זה עובד?</button>
   <button class="btn" id="save">💾 שמור והורד קובץ שינויים</button>
 </div>
-<div class="hint">גררו תמונה על תמונה אחרת כדי <b>להחליף מיקום</b> (גם בין עמודים) · ריחוף על תמונה מציג <b>החלפה (⤺)</b> ו<b>הסרה (✕)</b> · לחצן <b>+ הוספת תמונה</b> בתחתית כל עמוד · בסיום — <b>שמור והורד</b> ושִלחו לי את הקובץ. הכל קורה מקומית בדפדפן שלכם; שום דבר לא נשמר או מתפרסם.</div>
+<div class="hint">גררו תמונה על תמונה אחרת כדי <b>להחליף מיקום</b> (גם בין עמודים) · ריחוף על תמונה: <b>⤢ מיקום</b> (לוחצים ואז גוררים בתוך התמונה כדי לבחור איזה חלק יוצג), <b>⤺ החלפה</b>, <b>✕ הסרה</b> · <b>+ הוספת תמונה</b> בתחתית כל עמוד · בסיום — <b>שמור והורד</b> ושִלחו לי את הקובץ. הכל מקומי בדפדפן שלכם; שום דבר לא נשמר או מתפרסם.</div>
 <div class="grid" id="grid"></div>
 <div class="badge" id="badge" style="display:none"></div>
 
 <div class="modal" id="modal"><div class="box">
   <h2>איך העורך עובד</h2>
   <p>• <b>החלפת מיקום:</b> גררו תמונה אחת ושחררו על תמונה אחרת — הן יתחלפו (אפשר גם בין עמודים שונים).</p>
+  <p>• <b>מיקום בתוך התא:</b> ריחוף → כפתור <b>⤢</b> → עכשיו גררו <u>בתוך</u> התמונה כדי לבחור איזה חלק ממנה יוצג (שימושי כשהתמונה גדולה ונחתכת). לחיצה נוספת על <b>⤢</b> מסיימת.</p>
   <p>• <b>החלפת תמונה:</b> ריחוף על תמונה → כפתור <b>⤺</b> → בחרו תמונה מהמחשב.</p>
   <p>• <b>הסרה:</b> ריחוף → כפתור <b>✕</b>.</p>
   <p>• <b>הוספה:</b> כפתור <b>+ הוספת תמונה</b> בתחתית העמוד.</p>
@@ -110,7 +114,8 @@ function render(){
       cells+=`<div class="tile" draggable="true" data-pi="${pi}" data-ti="${ti}"
         style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%;
         background-image:url('${tileBg(t)}');background-position:${pos}">
-        <div class="ops"><button class="op" data-act="rep" title="החלפה">⤺</button>
+        <div class="ops"><button class="op" data-act="pan" title="מיקום — גררו בתוך התמונה">⤢</button>
+        <button class="op" data-act="rep" title="החלפה">⤺</button>
         <button class="op" data-act="del" title="הסרה">✕</button></div></div>`;
     });
     el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}${pg._changed?' •':''}</span><span>${pg.tiles.length} תמונות</span></div>
@@ -124,7 +129,27 @@ function render(){
 }
 function updateBadge(n){ const b=$('badge'); if(n>0){b.style.display='block';b.textContent=`${n} עמודים שונו — אל תשכחו "שמור והורד"`;}else b.style.display='none'; }
 
-let dragSrc=null;
+let dragSrc=null, panActive=null;
+function exitPan(){
+  if(!panActive)return; const el=panActive.el;
+  if(el){ el.classList.remove('pan'); el.setAttribute('draggable','true'); el.style.touchAction='';
+    el.onpointerdown=el.onpointermove=el.onpointerup=null; }
+  panActive=null; render();
+}
+function enterPan(pi,ti,el){
+  if(panActive){ const was=panActive.el; exitPan(); if(was===el) return; }
+  panActive={pi,ti,el}; el.classList.add('pan'); el.setAttribute('draggable','false'); el.style.touchAction='none';
+  let dragging=false, sx=0, sy=0, spx=.5, spy=.4;
+  el.onpointerdown=e=>{ if(e.target.closest('.op'))return; e.preventDefault(); dragging=true;
+    try{el.setPointerCapture(e.pointerId);}catch(_){}
+    sx=e.clientX; sy=e.clientY; const t=DATA.pages[pi].tiles[ti]; spx=t.posx??.5; spy=t.posy??.4; };
+  el.onpointermove=e=>{ if(!dragging)return; const r=el.getBoundingClientRect(); const t=DATA.pages[pi].tiles[ti];
+    let nx=Math.max(0,Math.min(1, spx-(e.clientX-sx)/r.width));
+    let ny=Math.max(0,Math.min(1, spy-(e.clientY-sy)/r.height));
+    t.posx=nx; t.posy=ny; t._posed=true; DATA.pages[pi]._changed=true;
+    el.style.backgroundPosition=`${nx*100}% ${ny*100}%`; };
+  el.onpointerup=e=>{ dragging=false; try{el.releasePointerCapture(e.pointerId);}catch(_){} };
+}
 function wire(){
   document.querySelectorAll('.tile').forEach(tl=>{
     tl.ondragstart=e=>{dragSrc={pi:+tl.dataset.pi,ti:+tl.dataset.ti};tl.classList.add('drag');};
@@ -140,8 +165,10 @@ function wire(){
     };
     tl.querySelectorAll('.op').forEach(op=>{
       op.onclick=e=>{e.stopPropagation();const pi=+tl.dataset.pi,ti=+tl.dataset.ti;
-        if(op.dataset.act==='del'){ DATA.pages[pi].tiles.splice(ti,1); DATA.pages[pi]._changed=true; render(); }
-        else { pickTarget={pi,ti,mode:'rep'}; $('filepick').click(); }
+        const act=op.dataset.act;
+        if(act==='del'){ exitPan(); DATA.pages[pi].tiles.splice(ti,1); DATA.pages[pi]._changed=true; render(); }
+        else if(act==='pan'){ enterPan(pi,ti,tl); }
+        else { exitPan(); pickTarget={pi,ti,mode:'rep'}; $('filepick').click(); }
       };
     });
   });
@@ -165,7 +192,8 @@ $('save').onclick=()=>{
   const out={version:1, edits:[]};
   DATA.pages.forEach(pg=>{
     if(!pg.editable||!pg._changed)return;
-    out.edits.push({n:pg.n, tiles:pg.tiles.map(t=> t.upload?{upload:t.name,data:t.data}:{id:t.id})});
+    out.edits.push({n:pg.n, tiles:pg.tiles.map(t=>{ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
+      if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; })});
   });
   if(!out.edits.length){alert('לא בוצעו שינויים.');return;}
   const blob=new Blob([JSON.stringify(out)],{type:'application/json'});
