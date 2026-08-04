@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>עורך האלבום — טירול 2026</title>
+<style>
+  :root{ --bg:#20261f; --panel:#2b3329; --ink:#f3ebe0; --soft:#b8a894; --gold:#bf9e62; --line:#3f4a38; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Assistant","Segoe UI",system-ui,sans-serif}
+  .bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:12px 18px;background:#1a1f19;border-bottom:1px solid var(--line)}
+  .bar h1{font-size:18px;margin:0;font-weight:800}.bar h1 .g{color:var(--gold)}
+  .bar .sp{flex:1}
+  .btn{background:var(--gold);color:#1a1f19;border:0;border-radius:10px;padding:11px 18px;font-weight:800;font-size:15px;cursor:pointer}
+  .btn.alt{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  .count{color:var(--soft);font-size:14px}
+  .hint{color:var(--soft);font-size:13px;padding:10px 18px;line-height:1.6}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px;padding:18px}
+  .page{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .page .lbl{font-size:12px;color:var(--soft);padding:6px 10px;display:flex;justify-content:space-between;align-items:center}
+  .board{position:relative;width:100%;padding-top:100%;background:#e9ede4}
+  .board .inner{position:absolute;inset:5%}
+  .tile{position:absolute;border-radius:8px;background-size:cover;background-position:center;
+    box-shadow:0 2px 8px #0004;cursor:grab;overflow:hidden;border:2px solid transparent}
+  .tile.drag{opacity:.4}.tile.over{border-color:var(--gold)}
+  .tile .ops{position:absolute;top:3px;left:3px;display:none;gap:3px}
+  .tile:hover .ops{display:flex}
+  .op{width:26px;height:26px;border-radius:6px;border:0;background:#000a;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .op:hover{background:var(--gold);color:#000}
+  .addwrap{padding:6px 10px 10px;text-align:center}
+  .add{background:#1a1f19;border:1px dashed var(--line);color:var(--soft);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;width:100%}
+  .add:hover{border-color:var(--gold);color:var(--ink)}
+  .ne img{width:100%;display:block;opacity:.9}
+  .badge{position:fixed;bottom:16px;left:16px;background:var(--gold);color:#1a1f19;font-weight:800;border-radius:10px;padding:10px 14px;font-size:14px;box-shadow:0 6px 20px #0006}
+  .modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:40;padding:20px}
+  .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:560px;padding:22px;line-height:1.7}
+  .modal h2{margin:0 0 10px}.modal code{background:#1a1f19;padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>עורך האלבום <span class="g">·</span> טירול 2026</h1>
+  <span class="count" id="count">טוען…</span>
+  <span class="sp"></span>
+  <button class="btn alt" id="help">איך זה עובד?</button>
+  <button class="btn" id="save">💾 שמור והורד קובץ שינויים</button>
+</div>
+<div class="hint">גררו תמונה על תמונה אחרת כדי <b>להחליף מיקום</b> (גם בין עמודים) · ריחוף על תמונה מציג <b>החלפה (⤺)</b> ו<b>הסרה (✕)</b> · לחצן <b>+ הוספת תמונה</b> בתחתית כל עמוד · בסיום — <b>שמור והורד</b> ושִלחו לי את הקובץ. הכל קורה מקומית בדפדפן שלכם; שום דבר לא נשמר או מתפרסם.</div>
+<div class="grid" id="grid"></div>
+<div class="badge" id="badge" style="display:none"></div>
+
+<div class="modal" id="modal"><div class="box">
+  <h2>איך העורך עובד</h2>
+  <p>• <b>החלפת מיקום:</b> גררו תמונה אחת ושחררו על תמונה אחרת — הן יתחלפו (אפשר גם בין עמודים שונים).</p>
+  <p>• <b>החלפת תמונה:</b> ריחוף על תמונה → כפתור <b>⤺</b> → בחרו תמונה מהמחשב.</p>
+  <p>• <b>הסרה:</b> ריחוף → כפתור <b>✕</b>.</p>
+  <p>• <b>הוספה:</b> כפתור <b>+ הוספת תמונה</b> בתחתית העמוד.</p>
+  <p>• בסיום לחצו <b>שמור והורד</b> — יורד קובץ <code>tirol-edits.json</code>. שִלחו לי אותו ואני מטמיע את השינויים ומרנדר מחדש.</p>
+  <p style="color:var(--soft)">עמודי כותרת/כריכה מוצגים אפורים ואינם ניתנים לעריכה.</p>
+  <div style="text-align:center;margin-top:14px"><button class="btn" onclick="document.getElementById('modal').style.display='none'">הבנתי</button></div>
+</div></div>
+
+<input type="file" id="filepick" accept="image/*" style="display:none">
+<script>
+const RECTS = {
+  duoP:[[0,.05,.487,.9],[.513,.05,.487,.9]],
+  duoL:[[0,0,1,.487],[0,.513,1,.487]],
+  split:[[0,0,.6,1],[.63,.18,.37,.64]],
+  bigleft:[[0,0,.6,1],[.63,0,.37,.485],[.63,.515,.37,.485]],
+  topbig:[[0,0,1,.6],[0,.63,.485,.37],[.515,.63,.485,.37]],
+  pinwheel:[[0,0,.58,.58],[.6,0,.4,.58],[0,.6,.4,.4],[.42,.6,.58,.4]],
+  onebig3:[[0,0,.635,1],[.655,0,.345,.32],[.655,.34,.345,.32],[.655,.68,.345,.32]],
+  grid4:[[0,0,.487,.487],[.513,0,.487,.487],[0,.513,.487,.487],[.513,.513,.487,.487]],
+  mosaic5:[[0,0,.52,.6],[.54,0,.46,.38],[.54,.4,.46,.2],[0,.62,.34,.38],[.36,.62,.64,.38]],
+  overlap:[[0,0,.74,.86],[.5,.48,.5,.52]],
+  banner:[[0,0,1,.6],[0,.63,.485,.37],[.515,.63,.485,.37]],
+  grid6:[[0,0,.32,.487],[.34,0,.32,.487],[.68,0,.32,.487],[0,.513,.32,.487],[.34,.513,.32,.487],[.68,.513,.32,.487]],
+  grid7:[[0,0,.5,.5],[.51,0,.245,.5],[.765,0,.235,.5],[0,.51,.245,.49],[.253,.51,.245,.49],[.506,.51,.245,.49],[.759,.51,.241,.49]]
+};
+const BYCOUNT = {2:'duoL',3:'topbig',4:'grid4',5:'mosaic5',6:'grid6',7:'grid7'};
+function rectsFor(tpl,n){
+  let r = RECTS[tpl];
+  if(!r || r.length!==n) r = RECTS[BYCOUNT[n]] || RECTS.grid4;
+  return r.slice(0,n);
+}
+let DATA=null, pickTarget=null;
+const $=id=>document.getElementById(id);
+
+fetch('editor_manifest.json').then(r=>r.json()).then(m=>{ DATA=m; render(); });
+
+function tileBg(t){ return t.data ? t.data : t.url; }
+function render(){
+  const grid=$('grid'); grid.innerHTML='';
+  let edited=0, editable=0;
+  DATA.pages.forEach((pg,pi)=>{
+    const el=document.createElement('div'); el.className='page';
+    if(!pg.editable){
+      el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}</span><span>${pg.kind==='opener'?'כותרת יום':'כריכה'}</span></div><div class="ne"><img src="${pg.img}" loading="lazy"></div>`;
+      grid.appendChild(el); return;
+    }
+    editable++;
+    if(pg._changed) edited++;
+    const rects=rectsFor(pg.template, pg.tiles.length);
+    let cells='';
+    pg.tiles.forEach((t,ti)=>{
+      const [x,y,w,h]=rects[ti]||[0,0,.3,.3];
+      const pos=`${(t.posx??.5)*100}% ${(t.posy??.4)*100}%`;
+      cells+=`<div class="tile" draggable="true" data-pi="${pi}" data-ti="${ti}"
+        style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%;
+        background-image:url('${tileBg(t)}');background-position:${pos}">
+        <div class="ops"><button class="op" data-act="rep" title="החלפה">⤺</button>
+        <button class="op" data-act="del" title="הסרה">✕</button></div></div>`;
+    });
+    el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}${pg._changed?' •':''}</span><span>${pg.tiles.length} תמונות</span></div>
+      <div class="board"><div class="inner">${cells}</div></div>
+      <div class="addwrap"><button class="add" data-add="${pi}">+ הוספת תמונה</button></div>`;
+    grid.appendChild(el);
+  });
+  $('count').textContent=`${editable} עמודים לעריכה · ${edited} שונו`;
+  updateBadge(edited);
+  wire();
+}
+function updateBadge(n){ const b=$('badge'); if(n>0){b.style.display='block';b.textContent=`${n} עמודים שונו — אל תשכחו "שמור והורד"`;}else b.style.display='none'; }
+
+let dragSrc=null;
+function wire(){
+  document.querySelectorAll('.tile').forEach(tl=>{
+    tl.ondragstart=e=>{dragSrc={pi:+tl.dataset.pi,ti:+tl.dataset.ti};tl.classList.add('drag');};
+    tl.ondragend=e=>tl.classList.remove('drag');
+    tl.ondragover=e=>{e.preventDefault();tl.classList.add('over');};
+    tl.ondragleave=e=>tl.classList.remove('over');
+    tl.ondrop=e=>{e.preventDefault();tl.classList.remove('over');
+      const dst={pi:+tl.dataset.pi,ti:+tl.dataset.ti};
+      if(!dragSrc||(dragSrc.pi===dst.pi&&dragSrc.ti===dst.ti))return;
+      const a=DATA.pages[dragSrc.pi].tiles, b=DATA.pages[dst.pi].tiles;
+      const tmp=a[dragSrc.ti]; a[dragSrc.ti]=b[dst.ti]; b[dst.ti]=tmp;
+      DATA.pages[dragSrc.pi]._changed=true; DATA.pages[dst.pi]._changed=true; render();
+    };
+    tl.querySelectorAll('.op').forEach(op=>{
+      op.onclick=e=>{e.stopPropagation();const pi=+tl.dataset.pi,ti=+tl.dataset.ti;
+        if(op.dataset.act==='del'){ DATA.pages[pi].tiles.splice(ti,1); DATA.pages[pi]._changed=true; render(); }
+        else { pickTarget={pi,ti,mode:'rep'}; $('filepick').click(); }
+      };
+    });
+  });
+  document.querySelectorAll('.add').forEach(a=>{
+    a.onclick=e=>{ pickTarget={pi:+a.dataset.add,mode:'add'}; $('filepick').click(); };
+  });
+}
+$('filepick').onchange=e=>{
+  const f=e.target.files[0]; if(!f||!pickTarget)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const tile={upload:true,name:f.name,data:rd.result,posx:.5,posy:.4};
+    const pg=DATA.pages[pickTarget.pi];
+    if(pickTarget.mode==='add') pg.tiles.push(tile); else pg.tiles[pickTarget.ti]=tile;
+    pg._changed=true; e.target.value=''; pickTarget=null; render();
+  };
+  rd.readAsDataURL(f);
+};
+$('help').onclick=()=>$('modal').style.display='flex';
+$('save').onclick=()=>{
+  const out={version:1, edits:[]};
+  DATA.pages.forEach(pg=>{
+    if(!pg.editable||!pg._changed)return;
+    out.edits.push({n:pg.n, tiles:pg.tiles.map(t=> t.upload?{upload:t.name,data:t.data}:{id:t.id})});
+  });
+  if(!out.edits.length){alert('לא בוצעו שינויים.');return;}
+  const blob=new Blob([JSON.stringify(out)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='tirol-edits.json'; a.click();
+  alert(`נשמר קובץ עם ${out.edits.length} עמודים ששונו. שִלחו לי אותו ואטמיע את השינויים.`);
+};
+</script>
+</body>
+</html>
