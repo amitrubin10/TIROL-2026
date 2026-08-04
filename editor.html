@@ -40,6 +40,8 @@
   .modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:40;padding:20px}
   .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:560px;padding:22px;line-height:1.7}
   .modal h2{margin:0 0 10px}.modal code{background:#1a1f19;padding:2px 6px;border-radius:5px}
+  .toast{position:fixed;bottom:16px;right:16px;background:#1a1f19;color:var(--ink);border:1px solid var(--gold);
+    border-radius:10px;padding:11px 16px;font-weight:700;font-size:14px;z-index:60;opacity:0;transition:opacity .3s;box-shadow:0 6px 20px #0007}
 </style>
 </head>
 <body>
@@ -48,9 +50,11 @@
   <span class="count" id="count">טוען…</span>
   <span class="sp"></span>
   <button class="btn alt" id="help">איך זה עובד?</button>
-  <button class="btn" id="save">💾 שמור והורד קובץ שינויים</button>
+  <button class="btn alt" id="reset" title="מחיקת השינויים השמורים וחזרה למקור">↺ אפס</button>
+  <button class="btn alt" id="savelocal">💾 שמירה (בדפדפן)</button>
+  <button class="btn" id="save">⬇️ שמור והורד קובץ</button>
 </div>
-<div class="hint">גררו תמונה על תמונה אחרת כדי <b>להחליף מיקום</b> (גם בין עמודים) · ריחוף על תמונה: <b>⤢ מיקום</b> (לוחצים ואז גוררים בתוך התמונה כדי לבחור איזה חלק יוצג), <b>⤺ החלפה</b>, <b>✕ הסרה</b> · <b>+ הוספת תמונה</b> בתחתית כל עמוד · בסיום — <b>שמור והורד</b> ושִלחו לי את הקובץ. הכל מקומי בדפדפן שלכם; שום דבר לא נשמר או מתפרסם.</div>
+<div class="hint">גררו תמונה על תמונה אחרת כדי <b>להחליף מיקום</b> (גם בין עמודים) · ריחוף על תמונה: <b>⤢ מיקום</b> (לוחצים ואז גוררים בתוך התמונה כדי לבחור איזה חלק יוצג), <b>⤺ החלפה</b>, <b>✕ הסרה</b> · <b>+ הוספת תמונה</b> בתחתית כל עמוד · אפשר <b>💾 שמירה (בדפדפן)</b> כדי להמשיך אחר כך — השינויים נשמרים מקומית ויישוחזרו כשתחזרו · בסיום — <b>⬇️ שמור והורד קובץ</b> ושִלחו לי אותו. הכל מקומי בדפדפן שלכם; שום דבר לא מתפרסם.</div>
 <div class="grid" id="grid"></div>
 <div class="badge" id="badge" style="display:none"></div>
 
@@ -89,10 +93,30 @@ function rectsFor(tpl,n){
   if(!r || r.length!==n) r = RECTS[BYCOUNT[n]] || RECTS.grid4;
   return r.slice(0,n);
 }
-let DATA=null, pickTarget=null;
+let DATA=null, pickTarget=null, IDMAP={};
 const $=id=>document.getElementById(id);
+const LSKEY='tirol-edit-state-v1';
 
-fetch('editor_manifest.json').then(r=>r.json()).then(m=>{ DATA=m; render(); });
+fetch('editor_manifest.json').then(r=>r.json()).then(m=>{ DATA=m;
+  DATA.pages.forEach(p=>{ if(p.editable) p.tiles.forEach(t=> IDMAP[t.id]={url:t.url,posx:t.posx,posy:t.posy}); });
+  loadSaved(); render();
+});
+
+function toast(msg){ let el=document.getElementById('toast'); if(!el){el=document.createElement('div');el.id='toast';el.className='toast';document.body.appendChild(el);} el.textContent=msg; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',1800); }
+function buildEdits(){ const out={version:1,edits:[]};
+  DATA.pages.forEach(pg=>{ if(!pg.editable||!pg._changed)return;
+    out.edits.push({n:pg.n, tiles:pg.tiles.map(t=>{ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
+      if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; })}); });
+  return out; }
+function saveLocal(silent){ try{ localStorage.setItem(LSKEY, JSON.stringify(buildEdits())); if(!silent) toast('נשמר בדפדפן ✓'); return true; }
+  catch(err){ if(!silent) alert('לא ניתן לשמור בדפדפן (ייתכן שהתמונות שהועלו גדולות מדי לאחסון מקומי). השתמשו ב"שמור והורד קובץ".'); return false; } }
+function loadSaved(){ let raw; try{raw=localStorage.getItem(LSKEY);}catch(_){ } if(!raw)return; let st; try{st=JSON.parse(raw);}catch(_){return;}
+  (st.edits||[]).forEach(ed=>{ const pg=DATA.pages.find(p=>p.n===ed.n && p.editable); if(!pg)return;
+    pg.tiles=ed.tiles.map(t=>{ if(t.upload) return {upload:true,name:t.upload,data:t.data,posx:t.posx??.5,posy:t.posy??.4,_posed:('posx'in t)};
+      const mm=IDMAP[t.id]||{}; return {id:t.id,url:mm.url,posx:(t.posx??mm.posx),posy:(t.posy??mm.posy),_posed:('posx'in t)}; });
+    pg._changed=true; });
+  setTimeout(()=>toast('שוחזרו שינויים שמורים ✓'),400);
+}
 
 function tileBg(t){ return t.data ? t.data : t.url; }
 function render(){
@@ -126,6 +150,7 @@ function render(){
   $('count').textContent=`${editable} עמודים לעריכה · ${edited} שונו`;
   updateBadge(edited);
   wire();
+  if(DATA) saveLocal(true);
 }
 function updateBadge(n){ const b=$('badge'); if(n>0){b.style.display='block';b.textContent=`${n} עמודים שונו — אל תשכחו "שמור והורד"`;}else b.style.display='none'; }
 
@@ -148,7 +173,7 @@ function enterPan(pi,ti,el){
     let ny=Math.max(0,Math.min(1, spy-(e.clientY-sy)/r.height));
     t.posx=nx; t.posy=ny; t._posed=true; DATA.pages[pi]._changed=true;
     el.style.backgroundPosition=`${nx*100}% ${ny*100}%`; };
-  el.onpointerup=e=>{ dragging=false; try{el.releasePointerCapture(e.pointerId);}catch(_){} };
+  el.onpointerup=e=>{ dragging=false; try{el.releasePointerCapture(e.pointerId);}catch(_){} saveLocal(true); };
 }
 function wire(){
   document.querySelectorAll('.tile').forEach(tl=>{
@@ -188,14 +213,12 @@ $('filepick').onchange=e=>{
   rd.readAsDataURL(f);
 };
 $('help').onclick=()=>$('modal').style.display='flex';
+$('savelocal').onclick=()=>{ saveLocal(false); };
+$('reset').onclick=()=>{ if(!confirm('למחוק את כל השינויים השמורים ולחזור למקור?'))return; try{localStorage.removeItem(LSKEY);}catch(_){ } location.reload(); };
 $('save').onclick=()=>{
-  const out={version:1, edits:[]};
-  DATA.pages.forEach(pg=>{
-    if(!pg.editable||!pg._changed)return;
-    out.edits.push({n:pg.n, tiles:pg.tiles.map(t=>{ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
-      if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; })});
-  });
+  const out=buildEdits();
   if(!out.edits.length){alert('לא בוצעו שינויים.');return;}
+  saveLocal(true);
   const blob=new Blob([JSON.stringify(out)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='tirol-edits.json'; a.click();
