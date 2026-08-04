@@ -42,6 +42,19 @@
   .modal h2{margin:0 0 10px}.modal code{background:#1a1f19;padding:2px 6px;border-radius:5px}
   .toast{position:fixed;bottom:16px;right:16px;background:#1a1f19;color:var(--ink);border:1px solid var(--gold);
     border-radius:10px;padding:11px 16px;font-weight:700;font-size:14px;z-index:60;opacity:0;transition:opacity .3s;box-shadow:0 6px 20px #0007}
+  #help{border-color:var(--gold);color:var(--gold)}
+  .modal .box{max-width:600px}
+  .modal .intro{color:var(--soft);font-size:14px;margin:0 0 8px}
+  .step{display:flex;gap:12px;align-items:flex-start;margin:13px 0}
+  .step .ic{flex:0 0 auto;display:flex;gap:5px;align-items:center;padding-top:1px}
+  .chip{min-width:32px;height:32px;padding:0 4px;border-radius:9px;background:var(--gold);color:#1a1f19;font-weight:800;font-size:16px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 7px #0006}
+  .chip.d{background:#000a;color:#fff;border:1px solid var(--gold)}
+  .kbtn{display:inline-flex;align-items:center;gap:5px;border-radius:9px;padding:7px 12px;font-weight:800;font-size:13px;white-space:nowrap}
+  .kbtn.gold{background:var(--gold);color:#1a1f19}
+  .kbtn.alt2{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  .step .tx{font-size:15px;line-height:1.55}.step .tx b{color:var(--gold)}
+  .savebox{background:#1a1f19;border:1px solid var(--gold);border-radius:12px;padding:14px 16px;margin-top:16px}
+  .savebox .title{font-weight:800;margin:0 0 6px}
 </style>
 </head>
 <body>
@@ -49,7 +62,7 @@
   <h1>עורך האלבום <span class="g">·</span> טירול 2026</h1>
   <span class="count" id="count">טוען…</span>
   <span class="sp"></span>
-  <button class="btn alt" id="help">איך זה עובד?</button>
+  <button class="btn alt" id="help">❓ איך עורכים?</button>
   <button class="btn alt" id="reset" title="מחיקת השינויים השמורים וחזרה למקור">↺ אפס</button>
   <button class="btn alt" id="savelocal">💾 שמירה (בדפדפן)</button>
   <button class="btn" id="save">⬇️ שמור והורד קובץ</button>
@@ -59,15 +72,23 @@
 <div class="badge" id="badge" style="display:none"></div>
 
 <div class="modal" id="modal"><div class="box">
-  <h2>איך העורך עובד</h2>
-  <p>• <b>החלפת מיקום:</b> גררו תמונה אחת ושחררו על תמונה אחרת — הן יתחלפו (אפשר גם בין עמודים שונים).</p>
-  <p>• <b>מיקום בתוך התא:</b> ריחוף → כפתור <b>⤢</b> → עכשיו גררו <u>בתוך</u> התמונה כדי לבחור איזה חלק ממנה יוצג (שימושי כשהתמונה גדולה ונחתכת). לחיצה נוספת על <b>⤢</b> מסיימת.</p>
-  <p>• <b>החלפת תמונה:</b> ריחוף על תמונה → כפתור <b>⤺</b> → בחרו תמונה מהמחשב.</p>
-  <p>• <b>הסרה:</b> ריחוף → כפתור <b>✕</b>.</p>
-  <p>• <b>הוספה:</b> כפתור <b>+ הוספת תמונה</b> בתחתית העמוד.</p>
-  <p>• בסיום לחצו <b>שמור והורד</b> — יורד קובץ <code>tirol-edits.json</code>. שִלחו לי אותו ואני מטמיע את השינויים ומרנדר מחדש.</p>
-  <p style="color:var(--soft)">עמודי כותרת/כריכה מוצגים אפורים ואינם ניתנים לעריכה.</p>
-  <div style="text-align:center;margin-top:14px"><button class="btn" onclick="document.getElementById('modal').style.display='none'">הבנתי</button></div>
+  <h2>עריכת האלבום — פשוט וכיף 💛</h2>
+  <p class="intro">מעבירים את העכבר מעל תמונה (במובייל — נוגעים בה) והכפתורים מופיעים. הנה מה שאפשר לעשות:</p>
+
+  <div class="step"><span class="ic"><span class="chip d">✥</span></span><div class="tx"><b>להחליף מיקום</b> — גררו תמונה ושחררו אותה על תמונה אחרת. הן יתחלפו (אפשר גם בין עמודים).</div></div>
+  <div class="step"><span class="ic"><span class="chip">⤢</span></span><div class="tx"><b>לבחור איזה חלק מהתמונה יוצג</b> — לחצו על <b>⤢</b>, ואז גררו <u>בתוך</u> התמונה. לחיצה שנייה על ⤢ מסיימת.</div></div>
+  <div class="step"><span class="ic"><span class="chip">⤺</span></span><div class="tx"><b>להחליף תמונה</b> — לחצו על <b>⤺</b> ובחרו תמונה מהמחשב או הטלפון.</div></div>
+  <div class="step"><span class="ic"><span class="chip">✕</span></span><div class="tx"><b>להסיר תמונה</b> — לחצו על <b>✕</b>.</div></div>
+  <div class="step"><span class="ic"><span class="kbtn alt2">+ הוספה</span></span><div class="tx"><b>להוסיף תמונה</b> — הכפתור <b>+ הוספת תמונה</b> שבתחתית כל עמוד.</div></div>
+
+  <div class="savebox">
+    <p class="title">אין צורך לסיים הכל עכשיו 👇</p>
+    <div class="step"><span class="ic"><span class="kbtn alt2">💾 שמירה</span></span><div class="tx">שומר את העבודה <b>בדפדפן</b> — אפשר לסגור ולחזור מתי שרוצים, והכל יחזור לבד.</div></div>
+    <div class="step"><span class="ic"><span class="kbtn gold">⬇️ שמור והורד</span></span><div class="tx">בסיום — יורד קובץ קטן. <b>שִלחו אותו לאמית</b> והוא יעדכן את האלבום.</div></div>
+  </div>
+
+  <p class="intro" style="margin-top:12px">עמודי כותרת וכריכה מוצגים אפורים ואי אפשר לערוך אותם.</p>
+  <div style="text-align:center;margin-top:16px"><button class="btn" onclick="document.getElementById('modal').style.display='none'">יאללה, מתחילים! 🚀</button></div>
 </div></div>
 
 <input type="file" id="filepick" accept="image/*" style="display:none">
