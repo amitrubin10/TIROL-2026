@@ -55,6 +55,17 @@
   .step .tx{font-size:15px;line-height:1.55}.step .tx b{color:var(--gold)}
   .savebox{background:#1a1f19;border:1px solid var(--gold);border-radius:12px;padding:14px 16px;margin-top:16px}
   .savebox .title{font-weight:800;margin:0 0 6px}
+  .tray{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#171b16;border-top:2px solid var(--gold);
+    box-shadow:0 -8px 30px #0008;transform:translateY(100%);transition:transform .25s;max-height:52vh;display:flex;flex-direction:column}
+  .tray.open{transform:translateY(0)}
+  .tray .thead{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .tray .thead h3{margin:0;font-size:16px}.tray .thead .sp{flex:1}
+  .tray .tlist{display:flex;gap:12px;overflow-x:auto;padding:14px 18px}
+  .remitem{flex:0 0 auto;width:130px;text-align:center}
+  .remthumb{width:130px;height:100px;border-radius:9px;background-size:cover;background-position:center;border:1px solid var(--line)}
+  .remfrom{color:var(--soft);font-size:12px;margin-top:3px}
+  .op2{margin-top:5px;background:var(--gold);color:#1a1f19;border:0;border-radius:8px;padding:6px 10px;font-weight:800;font-size:13px;cursor:pointer;width:100%}
+  .tempty{color:var(--soft);padding:22px;text-align:center;width:100%}
 </style>
 </head>
 <body>
@@ -62,6 +73,7 @@
   <h1>עורך האלבום <span class="g">·</span> טירול 2026</h1>
   <span class="count" id="count">טוען…</span>
   <span class="sp"></span>
+  <button class="btn alt" id="trayBtn">🗑️ הוסרו (0)</button>
   <button class="btn alt" id="help">❓ איך עורכים?</button>
   <button class="btn alt" id="reset" title="מחיקת השינויים השמורים וחזרה למקור">↺ אפס</button>
   <button class="btn alt" id="savelocal">💾 שמירה (בדפדפן)</button>
@@ -71,6 +83,16 @@
 <div class="grid" id="grid"></div>
 <div class="badge" id="badge" style="display:none"></div>
 
+<div class="tray" id="tray">
+  <div class="thead">
+    <h3>🗑️ תמונות שהוסרו <span style="color:var(--soft);font-weight:400">— אפשר להחזיר בכל רגע</span></h3>
+    <span class="sp"></span>
+    <button class="btn alt" id="restoreAll">↩ החזר הכל</button>
+    <button class="btn alt" id="trayClose">סגור ✕</button>
+  </div>
+  <div class="tlist" id="trayList"></div>
+</div>
+
 <div class="modal" id="modal"><div class="box">
   <h2>עריכת האלבום — פשוט וכיף 💛</h2>
   <p class="intro">מעבירים את העכבר מעל תמונה (במובייל — נוגעים בה) והכפתורים מופיעים. הנה מה שאפשר לעשות:</p>
@@ -78,7 +100,7 @@
   <div class="step"><span class="ic"><span class="chip d">✥</span></span><div class="tx"><b>להחליף מיקום</b> — גררו תמונה ושחררו אותה על תמונה אחרת. הן יתחלפו (אפשר גם בין עמודים).</div></div>
   <div class="step"><span class="ic"><span class="chip">⤢</span></span><div class="tx"><b>לבחור איזה חלק מהתמונה יוצג</b> — לחצו על <b>⤢</b>, ואז גררו <u>בתוך</u> התמונה. לחיצה שנייה על ⤢ מסיימת.</div></div>
   <div class="step"><span class="ic"><span class="chip">⤺</span></span><div class="tx"><b>להחליף תמונה</b> — לחצו על <b>⤺</b> ובחרו תמונה מהמחשב או הטלפון.</div></div>
-  <div class="step"><span class="ic"><span class="chip">✕</span></span><div class="tx"><b>להסיר תמונה</b> — לחצו על <b>✕</b>.</div></div>
+  <div class="step"><span class="ic"><span class="chip">✕</span></span><div class="tx"><b>להסיר תמונה</b> — לחצו על <b>✕</b>. התמונה עוברת ל<b>🗑️ סל "הוסרו"</b> (למעלה) — רואים שם בכל רגע מה הוסר, ותמיד אפשר <b>↩ להחזיר</b>. שום דבר לא נמחק.</div></div>
   <div class="step"><span class="ic"><span class="kbtn alt2">+ הוספה</span></span><div class="tx"><b>להוסיף תמונה</b> — הכפתור <b>+ הוספת תמונה</b> שבתחתית כל עמוד.</div></div>
 
   <div class="savebox">
@@ -118,26 +140,43 @@ let DATA=null, pickTarget=null, IDMAP={};
 const $=id=>document.getElementById(id);
 const LSKEY='tirol-edit-state-v1';
 
-fetch('editor_manifest.json').then(r=>r.json()).then(m=>{ DATA=m;
+fetch('editor_manifest.json').then(r=>r.json()).then(m=>{ DATA=m; DATA.removed=[];
   DATA.pages.forEach(p=>{ if(p.editable) p.tiles.forEach(t=> IDMAP[t.id]={url:t.url,posx:t.posx,posy:t.posy}); });
   loadSaved(); render();
 });
 
 function toast(msg){ let el=document.getElementById('toast'); if(!el){el=document.createElement('div');el.id='toast';el.className='toast';document.body.appendChild(el);} el.textContent=msg; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',1800); }
-function buildEdits(){ const out={version:1,edits:[]};
+function buildEdits(){ const out={version:1,edits:[],removed:[]};
   DATA.pages.forEach(pg=>{ if(!pg.editable||!pg._changed)return;
     out.edits.push({n:pg.n, tiles:pg.tiles.map(t=>{ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
       if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; })}); });
+  (DATA.removed||[]).forEach(r=> out.removed.push(r.upload?{upload:r.name,from:r.originN}:{id:r.id,from:r.originN}));
   return out; }
-function saveLocal(silent){ try{ localStorage.setItem(LSKEY, JSON.stringify(buildEdits())); if(!silent) toast('נשמר בדפדפן ✓'); return true; }
+function saveLocal(silent){ try{ localStorage.setItem(LSKEY, JSON.stringify({e:buildEdits().edits, r:DATA.removed||[]})); if(!silent) toast('נשמר בדפדפן ✓'); return true; }
   catch(err){ if(!silent) alert('לא ניתן לשמור בדפדפן (ייתכן שהתמונות שהועלו גדולות מדי לאחסון מקומי). השתמשו ב"שמור והורד קובץ".'); return false; } }
 function loadSaved(){ let raw; try{raw=localStorage.getItem(LSKEY);}catch(_){ } if(!raw)return; let st; try{st=JSON.parse(raw);}catch(_){return;}
-  (st.edits||[]).forEach(ed=>{ const pg=DATA.pages.find(p=>p.n===ed.n && p.editable); if(!pg)return;
+  (st.e||st.edits||[]).forEach(ed=>{ const pg=DATA.pages.find(p=>p.n===ed.n && p.editable); if(!pg)return;
     pg.tiles=ed.tiles.map(t=>{ if(t.upload) return {upload:true,name:t.upload,data:t.data,posx:t.posx??.5,posy:t.posy??.4,_posed:('posx'in t)};
       const mm=IDMAP[t.id]||{}; return {id:t.id,url:mm.url,posx:(t.posx??mm.posx),posy:(t.posy??mm.posy),_posed:('posx'in t)}; });
     pg._changed=true; });
+  DATA.removed = st.r || [];
   setTimeout(()=>toast('שוחזרו שינויים שמורים ✓'),400);
 }
+function renderTray(){ const rem=DATA.removed||[]; const tb=$('trayBtn'); if(tb) tb.textContent='🗑️ הוסרו ('+rem.length+')';
+  const box=$('trayList'); if(!box)return;
+  if(!rem.length){ box.innerHTML='<div class="tempty">אין תמונות שהוסרו. כשמסירים תמונה (✕) היא תופיע כאן ותמיד אפשר להחזיר אותה.</div>'; return; }
+  box.innerHTML='';
+  rem.forEach((it,idx)=>{ const bg=it.data||it.url; const d=document.createElement('div'); d.className='remitem';
+    d.innerHTML='<div class="remthumb" style="background-image:url(\''+bg+'\')"></div><div class="remfrom">מעמוד '+it.originN+'</div><button class="op2" data-i="'+idx+'">↩ החזר</button>';
+    box.appendChild(d); });
+  box.querySelectorAll('.op2').forEach(b=> b.onclick=()=>restore(+b.dataset.i));
+}
+function restore(idx){ const it=(DATA.removed||[])[idx]; if(!it)return;
+  let pg=DATA.pages.find(p=>p.n===it.originN && p.editable) || DATA.pages.find(p=>p.editable);
+  const tile= it.upload?{upload:true,name:it.name,data:it.data,posx:it.posx??.5,posy:it.posy??.4,_posed:!!it._posed}
+                       :{id:it.id,url:it.url,posx:it.posx,posy:it.posy,_posed:!!it._posed};
+  pg.tiles.push(tile); pg._changed=true; DATA.removed.splice(idx,1); renderTray(); render(); toast('התמונה הוחזרה לעמוד '+pg.n+' ✓'); }
+function restoreAll(){ while((DATA.removed||[]).length){ restore(0); } }
 
 function tileBg(t){ return t.data ? t.data : t.url; }
 function render(){
@@ -171,6 +210,7 @@ function render(){
   $('count').textContent=`${editable} עמודים לעריכה · ${edited} שונו`;
   updateBadge(edited);
   wire();
+  renderTray();
   if(DATA) saveLocal(true);
 }
 function updateBadge(n){ const b=$('badge'); if(n>0){b.style.display='block';b.textContent=`${n} עמודים שונו — אל תשכחו "שמור והורד"`;}else b.style.display='none'; }
@@ -212,7 +252,9 @@ function wire(){
     tl.querySelectorAll('.op').forEach(op=>{
       op.onclick=e=>{e.stopPropagation();const pi=+tl.dataset.pi,ti=+tl.dataset.ti;
         const act=op.dataset.act;
-        if(act==='del'){ exitPan(); DATA.pages[pi].tiles.splice(ti,1); DATA.pages[pi]._changed=true; render(); }
+        if(act==='del'){ exitPan(); const pg=DATA.pages[pi]; const rt=pg.tiles.splice(ti,1)[0];
+          if(rt){ (DATA.removed=DATA.removed||[]).push(Object.assign({originN:pg.n}, rt)); }
+          pg._changed=true; renderTray(); render(); toast('הועבר לסל "הוסרו" — אפשר להחזיר'); }
         else if(act==='pan'){ enterPan(pi,ti,tl); }
         else { exitPan(); pickTarget={pi,ti,mode:'rep'}; $('filepick').click(); }
       };
@@ -234,6 +276,9 @@ $('filepick').onchange=e=>{
   rd.readAsDataURL(f);
 };
 $('help').onclick=()=>$('modal').style.display='flex';
+$('trayBtn').onclick=()=>{ renderTray(); $('tray').classList.toggle('open'); };
+$('trayClose').onclick=()=>$('tray').classList.remove('open');
+$('restoreAll').onclick=()=>{ if((DATA.removed||[]).length && confirm('להחזיר את כל התמונות שהוסרו?')) restoreAll(); };
 $('savelocal').onclick=()=>{ saveLocal(false); };
 $('reset').onclick=()=>{ if(!confirm('למחוק את כל השינויים השמורים ולחזור למקור?'))return; try{localStorage.removeItem(LSKEY);}catch(_){ } location.reload(); };
 $('save').onclick=()=>{
