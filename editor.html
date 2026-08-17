@@ -32,6 +32,12 @@
   .tile:hover .ops{display:flex}
   .op{width:26px;height:26px;border-radius:6px;border:0;background:#000a;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .op:hover{background:var(--gold);color:#000}
+  .titlecard{position:absolute;left:8%;top:4%;width:84%;height:26%;background:#fff;border-radius:12px;box-shadow:0 3px 10px #0003;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:6px}
+  .titlecard .ttl{color:#33413a;font-weight:800;font-size:19px;text-align:center}
+  .editttl{background:var(--gold);color:#1a1f19;border:0;border-radius:8px;padding:5px 12px;font-weight:800;font-size:12px;cursor:pointer}
+  .movezone{border:1px dashed var(--line);border-radius:8px;color:var(--soft);font-size:12px;padding:7px;margin-bottom:6px;transition:.15s}
+  .movezone.mzover{border-color:var(--gold);color:var(--ink);background:#2f3a29}
+  .board.mzover{outline:2px dashed var(--gold);outline-offset:-4px}
   .addwrap{padding:6px 10px 10px;text-align:center}
   .add{background:#1a1f19;border:1px dashed var(--line);color:var(--soft);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;width:100%}
   .add:hover{border-color:var(--gold);color:var(--ink)}
@@ -101,7 +107,9 @@
   <div class="step"><span class="ic"><span class="chip">⤢</span></span><div class="tx"><b>לבחור איזה חלק מהתמונה יוצג</b> — לחצו על <b>⤢</b>, ואז גררו <u>בתוך</u> התמונה. לחיצה שנייה על ⤢ מסיימת.</div></div>
   <div class="step"><span class="ic"><span class="chip">⤺</span></span><div class="tx"><b>להחליף תמונה</b> — לחצו על <b>⤺</b> ובחרו תמונה מהמחשב או הטלפון.</div></div>
   <div class="step"><span class="ic"><span class="chip">✕</span></span><div class="tx"><b>להסיר תמונה</b> — לחצו על <b>✕</b>. התמונה עוברת ל<b>🗑️ סל "הוסרו"</b> (למעלה) — רואים שם בכל רגע מה הוסר, ותמיד אפשר <b>↩ להחזיר</b>. שום דבר לא נמחק.</div></div>
-  <div class="step"><span class="ic"><span class="kbtn alt2">+ הוספה</span></span><div class="tx"><b>להוסיף תמונה</b> — הכפתור <b>+ הוספת תמונה</b> שבתחתית כל עמוד.</div></div>
+  <div class="step"><span class="ic"><span class="kbtn alt2">+ הוספה</span></span><div class="tx"><b>להוסיף תמונה</b> — הכפתור <b>+ הוספת תמונה</b> שבתחתית כל עמוד (כך אפשר גם לשנות כמה תמונות יש בעמוד — למשל מ-3 ל-4).</div></div>
+  <div class="step"><span class="ic"><span class="kbtn alt2">⇄ העברה</span></span><div class="tx"><b>להעביר תמונה בין עמודים</b> — גררו תמונה ושחררו על הפס <b>"⇄ גררו לכאן תמונה מעמוד אחר"</b> שבתחתית עמוד היעד.</div></div>
+  <div class="step"><span class="ic"><span class="chip">✎</span></span><div class="tx"><b>עמוד עם כותרת יום</b> (למשל "יום שני") — אפשר <b>✎ לשנות את הכותרת</b>, וגם להחליף/למקם את התמונה בעזרת <b>⤺</b> ו-<b>⤢</b>.</div></div>
 
   <div class="savebox">
     <p class="title">אין צורך לסיים הכל עכשיו 👇</p>
@@ -130,7 +138,8 @@ const RECTS = {
   grid6:[[0,0,.32,.487],[.34,0,.32,.487],[.68,0,.32,.487],[0,.513,.32,.487],[.34,.513,.32,.487],[.68,.513,.32,.487]],
   grid7:[[0,0,.5,.5],[.51,0,.245,.5],[.765,0,.235,.5],[0,.51,.245,.49],[.253,.51,.245,.49],[.506,.51,.245,.49],[.759,.51,.241,.49]]
 };
-const BYCOUNT = {2:'duoL',3:'topbig',4:'grid4',5:'mosaic5',6:'grid6',7:'grid7'};
+RECTS.single=[[0,0,1,1]];
+const BYCOUNT = {1:'single',2:'duoL',3:'topbig',4:'grid4',5:'mosaic5',6:'grid6',7:'grid7'};
 function rectsFor(tpl,n){
   let r = RECTS[tpl];
   if(!r || r.length!==n) r = RECTS[BYCOUNT[n]] || RECTS.grid4;
@@ -146,16 +155,20 @@ fetch('editor_manifest.json').then(r=>r.json()).then(m=>{ DATA=m; DATA.removed=[
 });
 
 function toast(msg){ let el=document.getElementById('toast'); if(!el){el=document.createElement('div');el.id='toast';el.className='toast';document.body.appendChild(el);} el.textContent=msg; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',1800); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function buildEdits(){ const out={version:1,edits:[],removed:[]};
   DATA.pages.forEach(pg=>{ if(!pg.editable||!pg._changed)return;
-    out.edits.push({n:pg.n, tiles:pg.tiles.map(t=>{ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
-      if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; })}); });
+    const rec={n:pg.n, tiles:pg.tiles.map(t=>{ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
+      if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; })};
+    if(pg.kind==='opener'){ rec.kind='opener'; rec.title=pg.title||''; }
+    out.edits.push(rec); });
   (DATA.removed||[]).forEach(r=> out.removed.push(r.upload?{upload:r.name,from:r.originN}:{id:r.id,from:r.originN}));
   return out; }
 function saveLocal(silent){ try{ localStorage.setItem(LSKEY, JSON.stringify({e:buildEdits().edits, r:DATA.removed||[]})); if(!silent) toast('נשמר בדפדפן ✓'); return true; }
   catch(err){ if(!silent) alert('לא ניתן לשמור בדפדפן (ייתכן שהתמונות שהועלו גדולות מדי לאחסון מקומי). השתמשו ב"שמור והורד קובץ".'); return false; } }
 function loadSaved(){ let raw; try{raw=localStorage.getItem(LSKEY);}catch(_){ } if(!raw)return; let st; try{st=JSON.parse(raw);}catch(_){return;}
   (st.e||st.edits||[]).forEach(ed=>{ const pg=DATA.pages.find(p=>p.n===ed.n && p.editable); if(!pg)return;
+    if(ed.kind==='opener' && ed.title!=null) pg.title=ed.title;
     pg.tiles=ed.tiles.map(t=>{ if(t.upload) return {upload:true,name:t.upload,data:t.data,posx:t.posx??.5,posy:t.posy??.4,_posed:('posx'in t)};
       const mm=IDMAP[t.id]||{}; return {id:t.id,url:mm.url,posx:(t.posx??mm.posx),posy:(t.posy??mm.posy),_posed:('posx'in t)}; });
     pg._changed=true; });
@@ -185,11 +198,24 @@ function render(){
   DATA.pages.forEach((pg,pi)=>{
     const el=document.createElement('div'); el.className='page';
     if(!pg.editable){
-      el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}</span><span>${pg.kind==='opener'?'כותרת יום':'כריכה'}</span></div><div class="ne"><img src="${pg.img}" loading="lazy"></div>`;
+      el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}</span><span>כריכה</span></div><div class="ne"><img src="${pg.img}" loading="lazy"></div>`;
       grid.appendChild(el); return;
     }
     editable++;
     if(pg._changed) edited++;
+    if(pg.kind==='opener'){
+      const t=pg.tiles[0]; let hero='';
+      if(t){ const pos=`${(t.posx??.5)*100}% ${(t.posy??.4)*100}%`;
+        hero=`<div class="tile" draggable="true" data-pi="${pi}" data-ti="0"
+          style="left:4%;top:40%;width:92%;height:56%;background-image:url('${tileBg(t)}');background-position:${pos}">
+          <div class="ops"><button class="op" data-act="pan" title="מיקום">⤢</button>
+          <button class="op" data-act="rep" title="החלפת התמונה">⤺</button></div></div>`; }
+      el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}${pg._changed?' •':''}</span><span>כותרת יום</span></div>
+        <div class="board" data-move="${pi}"><div class="inner">
+          <div class="titlecard"><span class="ttl">${esc(pg.title||'')}</span><button class="editttl" data-ttl="${pi}">✎ שנה כותרת</button></div>
+          ${hero}</div></div>`;
+      grid.appendChild(el); return;
+    }
     const rects=rectsFor(pg.template, pg.tiles.length);
     let cells='';
     pg.tiles.forEach((t,ti)=>{
@@ -203,8 +229,8 @@ function render(){
         <button class="op" data-act="del" title="הסרה">✕</button></div></div>`;
     });
     el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}${pg._changed?' •':''}</span><span>${pg.tiles.length} תמונות</span></div>
-      <div class="board"><div class="inner">${cells}</div></div>
-      <div class="addwrap"><button class="add" data-add="${pi}">+ הוספת תמונה</button></div>`;
+      <div class="board" data-move="${pi}"><div class="inner">${cells}</div></div>
+      <div class="addwrap"><div class="movezone" data-move="${pi}">⇄ גררו לכאן תמונה מעמוד אחר</div><button class="add" data-add="${pi}">+ הוספת תמונה</button></div>`;
     grid.appendChild(el);
   });
   $('count').textContent=`${editable} עמודים לעריכה · ${edited} שונו`;
@@ -242,12 +268,12 @@ function wire(){
     tl.ondragend=e=>tl.classList.remove('drag');
     tl.ondragover=e=>{e.preventDefault();tl.classList.add('over');};
     tl.ondragleave=e=>tl.classList.remove('over');
-    tl.ondrop=e=>{e.preventDefault();tl.classList.remove('over');
+    tl.ondrop=e=>{e.preventDefault();e.stopPropagation();tl.classList.remove('over');
       const dst={pi:+tl.dataset.pi,ti:+tl.dataset.ti};
-      if(!dragSrc||(dragSrc.pi===dst.pi&&dragSrc.ti===dst.ti))return;
+      if(!dragSrc||(dragSrc.pi===dst.pi&&dragSrc.ti===dst.ti)){dragSrc=null;return;}
       const a=DATA.pages[dragSrc.pi].tiles, b=DATA.pages[dst.pi].tiles;
       const tmp=a[dragSrc.ti]; a[dragSrc.ti]=b[dst.ti]; b[dst.ti]=tmp;
-      DATA.pages[dragSrc.pi]._changed=true; DATA.pages[dst.pi]._changed=true; render();
+      DATA.pages[dragSrc.pi]._changed=true; DATA.pages[dst.pi]._changed=true; dragSrc=null; render();
     };
     tl.querySelectorAll('.op').forEach(op=>{
       op.onclick=e=>{e.stopPropagation();const pi=+tl.dataset.pi,ti=+tl.dataset.ti;
@@ -263,7 +289,24 @@ function wire(){
   document.querySelectorAll('.add').forEach(a=>{
     a.onclick=e=>{ pickTarget={pi:+a.dataset.add,mode:'add'}; $('filepick').click(); };
   });
+  document.querySelectorAll('.editttl').forEach(b=>{
+    b.onclick=e=>{ e.stopPropagation(); const pi=+b.dataset.ttl; const cur=DATA.pages[pi].title||'';
+      const nv=prompt('כותרת חדשה לעמוד:', cur); if(nv!=null){ DATA.pages[pi].title=nv; DATA.pages[pi]._changed=true; render(); } };
+  });
+  document.querySelectorAll('[data-move]').forEach(z=>{
+    z.ondragover=e=>{ e.preventDefault(); z.classList.add('mzover'); };
+    z.ondragleave=e=>z.classList.remove('mzover');
+    z.ondrop=e=>{ e.preventDefault(); z.classList.remove('mzover'); moveTileTo(+z.dataset.move); };
+  });
 }
+function moveTileTo(destPi){ if(!dragSrc){return;} const src=DATA.pages[dragSrc.pi], dst=DATA.pages[destPi];
+  if(!src||!dst||dragSrc.pi===destPi){dragSrc=null;return;}
+  if(!dst.editable||dst.kind==='opener'){ toast('אפשר להעביר רק לעמוד תמונות רגיל'); dragSrc=null; return; }
+  if(src.kind==='opener'){ toast('אי אפשר להוציא תמונה מעמוד כותרת'); dragSrc=null; return; }
+  if((src.tiles.length||0)<=1){ toast('אי אפשר לרוקן עמוד לגמרי'); dragSrc=null; return; }
+  if((dst.tiles.length||0)>=7){ toast('בעמוד יעד יש כבר 7 תמונות (מקסימום)'); dragSrc=null; return; }
+  const t=src.tiles.splice(dragSrc.ti,1)[0]; if(!t){dragSrc=null;return;}
+  dst.tiles.push(t); src._changed=true; dst._changed=true; dragSrc=null; render(); toast('התמונה הועברה לעמוד '+dst.n+' ✓'); }
 $('filepick').onchange=e=>{
   const f=e.target.files[0]; if(!f||!pickTarget)return;
   const rd=new FileReader();
