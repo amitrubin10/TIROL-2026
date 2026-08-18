@@ -28,9 +28,10 @@
   .tile.pan{border-color:var(--gold);cursor:grab;box-shadow:0 0 0 3px var(--gold),0 2px 8px #0006}
   .tile.pan:active{cursor:grabbing}
   .tile.pan::after{content:'⤢ גררו למיקום';position:absolute;bottom:4px;right:4px;background:var(--gold);color:#1a1f19;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px}
-  .tile .ops{position:absolute;top:3px;left:3px;display:none;gap:3px}
+  .tile .ops{position:absolute;top:3px;left:3px;display:none;gap:2px}
   .tile:hover .ops{display:flex}
-  .op{width:26px;height:26px;border-radius:6px;border:0;background:#000a;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .op{width:23px;height:23px;border-radius:6px;border:0;background:#000b;color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .warn{background:#4a331c;border:1px solid var(--gold);color:#ffeede;border-radius:8px;font-size:12px;padding:7px 10px;margin:0 10px 6px;font-weight:700}
   .op:hover{background:var(--gold);color:#000}
   .titlecard{position:absolute;left:8%;top:4%;width:84%;height:26%;background:#fff;border-radius:12px;box-shadow:0 3px 10px #0003;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:6px}
   .titlecard .ttl{color:#33413a;font-weight:800;font-size:19px;text-align:center}
@@ -139,29 +140,45 @@ const RECTS = {
   grid7:[[0,0,.5,.5],[.51,0,.245,.5],[.765,0,.235,.5],[0,.51,.245,.49],[.253,.51,.245,.49],[.506,.51,.245,.49],[.759,.51,.241,.49]]
 };
 RECTS.single=[[0,0,1,1]];
+RECTS.grid6w=[[0,0,.493,.32],[.507,0,.493,.32],[0,.34,.493,.32],[.507,.34,.493,.32],[0,.68,.493,.32],[.507,.68,.493,.32]];
 const BYCOUNT = {1:'single',2:'duoL',3:'topbig',4:'grid4',5:'mosaic5',6:'grid6',7:'grid7'};
-function rectsFor(tpl,n){
-  let r = RECTS[tpl];
-  if(!r || r.length!==n) r = RECTS[BYCOUNT[n]] || RECTS.grid4;
-  return r.slice(0,n);
-}
+const MAXP = 7;   // max photos per page
+// ---- orientation-aware layout ----
+function orOf(a){ a=a||1; return a>1.15?'W':(a<0.87?'T':'S'); }         // tile orientation from aspect
+function slotOr(w,h){ const a=w/h; return a>1.15?'W':(a<0.87?'T':'S'); } // slot orientation (square canvas)
+const SLOTOR={}; for(const k in RECTS){ SLOTOR[k]=RECTS[k].map(r=>slotOr(r[2],r[3])); }
+const CAND={1:['single'],2:['duoL','duoP','split'],3:['topbig','bigleft'],4:['grid4','onebig3','pinwheel'],5:['mosaic5'],6:['grid6','grid6w'],7:['grid7']};
+function greedyAssign(tiles,tpl){ const slots=SLOTOR[tpl]||[]; const pool=tiles.map(t=>({t,o:orOf(t.ar)})); const order=[]; let score=0;
+  for(const sl of slots){ let k=-1;
+    if(sl!=='S') k=pool.findIndex(p=>p.o===sl);
+    if(k<0) k=pool.findIndex(p=>p.o==='S');
+    if(k<0) k=0;
+    const p=pool.splice(Math.max(k,0),1)[0]; if(!p) break; order.push(p.t);
+    if(p.o===sl||p.o==='S'||sl==='S') score++; }
+  pool.forEach(p=>order.push(p.t)); return {order,score}; }
+function chooseTpl(tiles){ const n=tiles.length; const cs=CAND[Math.min(Math.max(n,1),7)]||['grid4'];
+  let best=cs[0],bs=-1; for(const c of cs){ const {score}=greedyAssign(tiles,c); if(score>bs){bs=score;best=c;} } return best; }
+function layoutPage(tiles){ const n=tiles.length; if(n<1) return {tpl:'single',order:[],overflow:0};
+  if(n>MAXP){ const {order}=greedyAssign(tiles.slice(0,MAXP),'grid7'); return {tpl:'grid7',order,overflow:n-MAXP}; }
+  const tpl=chooseTpl(tiles); const {order}=greedyAssign(tiles,tpl); return {tpl,order,overflow:0}; }
 let DATA=null, pickTarget=null, IDMAP={};
 const $=id=>document.getElementById(id);
 const LSKEY='tirol-edit-state-v1';
 
 fetch('editor_manifest.json').then(r=>r.json()).then(m=>{ DATA=m; DATA.removed=[];
-  DATA.pages.forEach(p=>{ if(p.editable) p.tiles.forEach(t=> IDMAP[t.id]={url:t.url,posx:t.posx,posy:t.posy}); });
+  DATA.pages.forEach(p=>{ if(p.editable) p.tiles.forEach(t=> IDMAP[t.id]={url:t.url,posx:t.posx,posy:t.posy,ar:t.ar}); });
   loadSaved(); render();
 });
 
 function toast(msg){ let el=document.getElementById('toast'); if(!el){el=document.createElement('div');el.id='toast';el.className='toast';document.body.appendChild(el);} el.textContent=msg; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',1800); }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function tileRec(t){ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
+  if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; }
 function buildEdits(){ const out={version:1,edits:[],removed:[]};
   DATA.pages.forEach(pg=>{ if(!pg.editable||!pg._changed)return;
-    const rec={n:pg.n, tiles:pg.tiles.map(t=>{ const o=t.upload?{upload:t.name,data:t.data}:{id:t.id};
-      if(t._posed){ o.posx=+(t.posx).toFixed(4); o.posy=+(t.posy).toFixed(4); } return o; })};
-    if(pg.kind==='opener'){ rec.kind='opener'; rec.title=pg.title||''; }
-    out.edits.push(rec); });
+    if(pg.kind==='opener'){ out.edits.push({n:pg.n, kind:'opener', title:pg.title||'', tiles:pg.tiles.map(tileRec)}); }
+    else { const lay=layoutPage(pg.tiles); const order=greedyAssign(pg.tiles, lay.tpl).order;
+      out.edits.push({n:pg.n, template:lay.tpl, tiles:order.map(tileRec)}); } });
   (DATA.removed||[]).forEach(r=> out.removed.push(r.upload?{upload:r.name,from:r.originN}:{id:r.id,from:r.originN}));
   return out; }
 function saveLocal(silent){ try{ localStorage.setItem(LSKEY, JSON.stringify({e:buildEdits().edits, r:DATA.removed||[]})); if(!silent) toast('נשמר בדפדפן ✓'); return true; }
@@ -170,7 +187,7 @@ function loadSaved(){ let raw; try{raw=localStorage.getItem(LSKEY);}catch(_){ } 
   (st.e||st.edits||[]).forEach(ed=>{ const pg=DATA.pages.find(p=>p.n===ed.n && p.editable); if(!pg)return;
     if(ed.kind==='opener' && ed.title!=null) pg.title=ed.title;
     pg.tiles=ed.tiles.map(t=>{ if(t.upload) return {upload:true,name:t.upload,data:t.data,posx:t.posx??.5,posy:t.posy??.4,_posed:('posx'in t)};
-      const mm=IDMAP[t.id]||{}; return {id:t.id,url:mm.url,posx:(t.posx??mm.posx),posy:(t.posy??mm.posy),_posed:('posx'in t)}; });
+      const mm=IDMAP[t.id]||{}; return {id:t.id,url:mm.url,posx:(t.posx??mm.posx),posy:(t.posy??mm.posy),ar:mm.ar,_posed:('posx'in t)}; });
     pg._changed=true; });
   DATA.removed = st.r || [];
   setTimeout(()=>toast('שוחזרו שינויים שמורים ✓'),400);
@@ -216,20 +233,23 @@ function render(){
           ${hero}</div></div>`;
       grid.appendChild(el); return;
     }
-    const rects=rectsFor(pg.template, pg.tiles.length);
+    const lay=layoutPage(pg.tiles); const rects=RECTS[lay.tpl]||RECTS.grid4;
     let cells='';
-    pg.tiles.forEach((t,ti)=>{
-      const [x,y,w,h]=rects[ti]||[0,0,.3,.3];
+    lay.order.forEach((t,si)=>{
+      const ti=pg.tiles.indexOf(t);
+      const [x,y,w,h]=rects[si]||[0,0,.3,.3];
       const pos=`${(t.posx??.5)*100}% ${(t.posy??.4)*100}%`;
       cells+=`<div class="tile" draggable="true" data-pi="${pi}" data-ti="${ti}"
         style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%;
         background-image:url('${tileBg(t)}');background-position:${pos}">
         <div class="ops"><button class="op" data-act="pan" title="מיקום — גררו בתוך התמונה">⤢</button>
+        <button class="op" data-act="movp" title="העבר לעמוד אחר">⇄</button>
         <button class="op" data-act="rep" title="החלפה">⤺</button>
         <button class="op" data-act="del" title="הסרה">✕</button></div></div>`;
     });
+    const warn = lay.overflow>0 ? `<div class="warn">⚠️ בעמוד ${pg.tiles.length} תמונות — אפשר עד ${MAXP}. מוצגות ${MAXP} הראשונות; העבירי ${lay.overflow} לעמוד אחר.</div>` : '';
     el.innerHTML=`<div class="lbl"><span>עמוד ${pg.n}${pg._changed?' •':''}</span><span>${pg.tiles.length} תמונות</span></div>
-      <div class="board" data-move="${pi}"><div class="inner">${cells}</div></div>
+      <div class="board" data-move="${pi}"><div class="inner">${cells}</div></div>${warn}
       <div class="addwrap"><div class="movezone" data-move="${pi}">⇄ גררו לכאן תמונה מעמוד אחר</div><button class="add" data-add="${pi}">+ הוספת תמונה</button></div>`;
     grid.appendChild(el);
   });
@@ -282,6 +302,7 @@ function wire(){
           if(rt){ (DATA.removed=DATA.removed||[]).push(Object.assign({originN:pg.n}, rt)); }
           pg._changed=true; renderTray(); render(); toast('הועבר לסל "הוסרו" — אפשר להחזיר'); }
         else if(act==='pan'){ enterPan(pi,ti,tl); }
+        else if(act==='movp'){ exitPan(); movePrompt(pi,ti); }
         else { exitPan(); pickTarget={pi,ti,mode:'rep'}; $('filepick').click(); }
       };
     });
@@ -299,6 +320,15 @@ function wire(){
     z.ondrop=e=>{ e.preventDefault(); z.classList.remove('mzover'); moveTileTo(+z.dataset.move); };
   });
 }
+function movePrompt(pi,ti){ const src=DATA.pages[pi];
+  const ans=prompt('להעביר את התמונה לעמוד מספר (עמוד תמונות):', '');
+  if(ans==null) return; const num=parseInt(ans,10); if(!num){ toast('מספר עמוד לא תקין'); return; }
+  const dst=DATA.pages.find(p=>p.n===num && p.editable && p.kind!=='opener');
+  if(!dst){ toast('עמוד '+num+' אינו עמוד תמונות'); return; }
+  if(dst===src){ toast('זה אותו עמוד'); return; }
+  if((src.tiles.length||0)<=1){ toast('אי אפשר לרוקן עמוד לגמרי'); return; }
+  if((dst.tiles.length||0)>=MAXP){ toast('בעמוד '+num+' כבר '+MAXP+' תמונות (מקסימום)'); return; }
+  const t=src.tiles.splice(ti,1)[0]; dst.tiles.push(t); src._changed=true; dst._changed=true; render(); toast('התמונה הועברה לעמוד '+num+' ✓'); }
 function moveTileTo(destPi){ if(!dragSrc){return;} const src=DATA.pages[dragSrc.pi], dst=DATA.pages[destPi];
   if(!src||!dst||dragSrc.pi===destPi){dragSrc=null;return;}
   if(!dst.editable||dst.kind==='opener'){ toast('אפשר להעביר רק לעמוד תמונות רגיל'); dragSrc=null; return; }
@@ -311,13 +341,21 @@ $('filepick').onchange=e=>{
   const f=e.target.files[0]; if(!f||!pickTarget)return;
   const rd=new FileReader();
   rd.onload=()=>{
-    const tile={upload:true,name:f.name,data:rd.result,posx:.5,posy:.4};
+    const tile={upload:true,name:f.name,data:rd.result,posx:.5,posy:.4,ar:1};
     const pg=DATA.pages[pickTarget.pi];
-    if(pickTarget.mode==='add') pg.tiles.push(tile); else pg.tiles[pickTarget.ti]=tile;
-    pg._changed=true; e.target.value=''; pickTarget=null; render();
+    if(pickTarget.mode==='add'){ if((pg.tiles.length||0)>=MAXP){ toast('בעמוד כבר '+MAXP+' תמונות (מקסימום)'); e.target.value=''; pickTarget=null; return; } pg.tiles.push(tile); }
+    else pg.tiles[pickTarget.ti]=tile;
+    pg._changed=true; e.target.value=''; pickTarget=null;
+    const im=new Image(); im.onload=()=>{ tile.ar = im.naturalHeight ? (im.naturalWidth/im.naturalHeight) : 1; render(); }; im.src=tile.data;
+    render();
   };
   rd.readAsDataURL(f);
 };
+// auto-scroll while dragging near the top/bottom edge (drop on off-screen pages)
+let _sdir=0,_sactive=false;
+addEventListener('dragover',e=>{ const y=e.clientY,h=innerHeight; _sdir = y<100?-1 : (y>h-100?1:0);
+  if(_sdir && !_sactive){ _sactive=true; (function st(){ if(!_sdir){_sactive=false;return;} scrollBy(0,_sdir*20); requestAnimationFrame(st); })(); } });
+addEventListener('drop',()=>{_sdir=0;}); addEventListener('dragend',()=>{_sdir=0;});
 $('help').onclick=()=>$('modal').style.display='flex';
 $('trayBtn').onclick=()=>{ renderTray(); $('tray').classList.toggle('open'); };
 $('trayClose').onclick=()=>$('tray').classList.remove('open');
