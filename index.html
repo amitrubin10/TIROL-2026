@@ -165,7 +165,9 @@
     <a class="dlbtn" href="album.html" target="_blank" rel="noopener">📖&nbsp; צפייה באלבום דיגיטלי</a>
     <a class="dlbtn" style="background:#6b7d5a" href="_report_assets/album_sample/album-preview.pdf" target="_blank" rel="noopener">⬇️&nbsp; הורדת האלבום (PDF)</a>
     <a class="dlbtn" style="background:#bf9e62;color:#1a1f19" href="editor.html" target="_blank" rel="noopener">✏️&nbsp; עריכת האלבום (גרירה/החלפה)</a>
+    <button class="dlbtn" style="background:#4a6b8a;border:0;cursor:pointer;font-family:inherit" id="dlall">⬇️&nbsp; הורדת כל התמונות (ZIP)</button>
   </div>
+  <p class="soft" id="dlall-note" style="margin:2px 0 0;font-size:13px">כל תמונות האלבום כקובץ אחד. ההכנה עשויה לקחת דקה־שתיים (איכות web).</p>
   <p class="soft" style="margin:8px 0 0;font-size:14px">כמה עמודים לטעימה (לחיצה מגדילה). לחוויה המלאה — פתחו "צפייה באלבום דיגיטלי".</p>
   <div class="grid" id="album-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-top:16px">
     <div class="cell" data-full="_report_assets/album_pages/p001.jpg"><img loading="lazy" src="_report_assets/album_pages/p001.jpg" alt="כריכה קדמית"></div>
@@ -340,6 +342,32 @@ let L=[],Li=0; const lb=document.getElementById('lb'),lbi=document.getElementByI
 function openLB(list,i){L=list;Li=i;lbi.src='_report_assets/web/'+list[i].orig;lb.classList.add('open');}
 document.getElementById('lbx').onclick=()=>{lb.classList.remove('open');lbi.src='';};
 lb.onclick=e=>{if(e.target===lb){lb.classList.remove('open');lbi.src='';}};
+
+// ---- Download ALL photos as one ZIP (client-side, no server) ----
+function loadJSZip(){ return new Promise((res,rej)=>{ if(window.JSZip) return res();
+  var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+  s.onload=res; s.onerror=()=>rej(new Error('לא ניתן לטעון את רכיב הדחיסה')); document.head.appendChild(s); }); }
+(function(){
+  var btn=document.getElementById('dlall'); if(!btn) return; var orig=btn.innerHTML;
+  btn.onclick=async function(){
+    if(btn.dataset.busy) return; btn.dataset.busy='1';
+    try{
+      await loadJSZip();
+      var list=await (await fetch('photos_manifest.json',{cache:'no-store'})).json();
+      var zip=new JSZip(), done=0, CONC=8;
+      async function worker(items){ for(var k=0;k<items.length;k++){ var it=items[k];
+        try{ var r=await fetch(it.url); if(r.ok){ zip.file(it.name, await r.blob()); } }catch(e){}
+        done++; btn.textContent='מכין… '+done+'/'+list.length; } }
+      var chunks=[]; for(var i=0;i<CONC;i++) chunks.push([]); list.forEach(function(it,i){ chunks[i%CONC].push(it); });
+      await Promise.all(chunks.map(worker));
+      btn.textContent='דוחס לקובץ…';
+      var blob=await zip.generateAsync({type:'blob'}, function(m){ btn.textContent='דוחס… '+Math.round(m.percent)+'%'; });
+      var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='תמונות-טירול-2026.zip'; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 15000);
+    }catch(e){ alert('שגיאה בהורדה: '+(e&&e.message||e)); }
+    btn.innerHTML=orig; btn.dataset.busy='';
+  };
+})();
 </script>
 </body>
 </html>
