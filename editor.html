@@ -86,7 +86,7 @@
   <button class="btn alt" id="savelocal">💾 שמירה (בדפדפן)</button>
   <button class="btn" id="save">⬇️ שמור והורד קובץ</button>
 </div>
-<div class="hint">גררו תמונה על תמונה אחרת כדי <b>להחליף מיקום</b> (גם בין עמודים) · ריחוף על תמונה: <b>⤢ מיקום</b> (לוחצים ואז גוררים בתוך התמונה כדי לבחור איזה חלק יוצג), <b>⤺ החלפה</b>, <b>✕ הסרה</b> · <b>+ הוספת תמונה</b> בתחתית כל עמוד · אפשר <b>💾 שמירה (בדפדפן)</b> כדי להמשיך אחר כך — השינויים נשמרים מקומית ויישוחזרו כשתחזרו · בסיום — <b>⬇️ שמור והורד קובץ</b> ושִלחו לי אותו. הכל מקומי בדפדפן שלכם; שום דבר לא מתפרסם.</div>
+<div class="hint">גררו תמונה לתוך עמוד אחר כדי <b>להוסיף</b> אותה שם (בלי להחליף) · ריחוף על תמונה: <b>⤢ מיקום</b> (לוחצים ואז גוררים בתוך התמונה כדי לבחור איזה חלק יוצג), <b>⤺ החלפה</b>, <b>✕ הסרה</b> · <b>+ הוספת תמונה</b> בתחתית כל עמוד · אפשר <b>💾 שמירה (בדפדפן)</b> כדי להמשיך אחר כך — השינויים נשמרים מקומית ויישוחזרו כשתחזרו · בסיום — <b>⬇️ שמור והורד קובץ</b> ושִלחו לי אותו. הכל מקומי בדפדפן שלכם; שום דבר לא מתפרסם.</div>
 <div class="grid" id="grid"></div>
 <div class="badge" id="badge" style="display:none"></div>
 
@@ -104,7 +104,7 @@
   <h2>עריכת האלבום — פשוט וכיף 💛</h2>
   <p class="intro">מעבירים את העכבר מעל תמונה (במובייל — נוגעים בה) והכפתורים מופיעים. הנה מה שאפשר לעשות:</p>
 
-  <div class="step"><span class="ic"><span class="chip d">✥</span></span><div class="tx"><b>להחליף מיקום</b> — גררו תמונה ושחררו אותה על תמונה אחרת. הן יתחלפו (אפשר גם בין עמודים).</div></div>
+  <div class="step"><span class="ic"><span class="chip d">✥</span></span><div class="tx"><b>להעביר תמונה לעמוד אחר</b> — גררו תמונה ושחררו אותה בתוך עמוד אחר; היא <b>תתווסף</b> לאותו עמוד (בלי להחליף). גרירה בתוך אותו עמוד רק מסדרת מחדש.</div></div>
   <div class="step"><span class="ic"><span class="chip">⤢</span></span><div class="tx"><b>לבחור איזה חלק מהתמונה יוצג</b> — לחצו על <b>⤢</b>, ואז גררו <u>בתוך</u> התמונה. לחיצה שנייה על ⤢ מסיימת.</div></div>
   <div class="step"><span class="ic"><span class="chip">⤺</span></span><div class="tx"><b>להחליף תמונה</b> — לחצו על <b>⤺</b> ובחרו תמונה מהמחשב או הטלפון.</div></div>
   <div class="step"><span class="ic"><span class="chip">✕</span></span><div class="tx"><b>להסיר תמונה</b> — לחצו על <b>✕</b>. התמונה עוברת ל<b>🗑️ סל "הוסרו"</b> (למעלה) — רואים שם בכל רגע מה הוסר, ותמיד אפשר <b>↩ להחזיר</b>. שום דבר לא נמחק.</div></div>
@@ -290,10 +290,11 @@ function wire(){
     tl.ondragleave=e=>tl.classList.remove('over');
     tl.ondrop=e=>{e.preventDefault();e.stopPropagation();tl.classList.remove('over');
       const dst={pi:+tl.dataset.pi,ti:+tl.dataset.ti};
-      if(!dragSrc||(dragSrc.pi===dst.pi&&dragSrc.ti===dst.ti)){dragSrc=null;return;}
-      const a=DATA.pages[dragSrc.pi].tiles, b=DATA.pages[dst.pi].tiles;
-      const tmp=a[dragSrc.ti]; a[dragSrc.ti]=b[dst.ti]; b[dst.ti]=tmp;
-      DATA.pages[dragSrc.pi]._changed=true; DATA.pages[dst.pi]._changed=true; dragSrc=null; render();
+      if(!dragSrc){return;}
+      if(dragSrc.pi===dst.pi){ // same page → reorder positions
+        if(dragSrc.ti!==dst.ti){ const a=DATA.pages[dragSrc.pi].tiles; const t=a[dragSrc.ti]; a[dragSrc.ti]=a[dst.ti]; a[dst.ti]=t; DATA.pages[dragSrc.pi]._changed=true; }
+        dragSrc=null; render(); return; }
+      moveTileTo(dst.pi);   // different page → ADD the photo to that page (move, no swap)
     };
     tl.querySelectorAll('.op').forEach(op=>{
       op.onclick=e=>{e.stopPropagation();const pi=+tl.dataset.pi,ti=+tl.dataset.ti;
